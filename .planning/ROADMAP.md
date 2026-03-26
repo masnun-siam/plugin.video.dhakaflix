@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation & Browse** - Installable addon with complete folder hierarchy navigation, file metadata display, and error handling
 - [ ] **Phase 2: Playback** - Video files play directly in Kodi's built-in player
-- [ ] **Phase 3: Search** - Users can find media across all servers by name
+- [x] **Phase 3: Search** - Users can find media across all servers by name (completed 2026-03-26)
 
 ## Phase Details
 
@@ -56,7 +56,7 @@ Plans:
 **Plans**:2 plans
 Plans:
 - [x] 03-01-PLAN.md — Search infrastructure: cache module, settings, search module
-- [ ] 03-02-PLAN.md — Search UI integration: routes, home entry, context menu
+- [x] 03-02-PLAN.md — Search UI integration: routes, home entry, context menu
 
 ## Progress
 
@@ -67,4 +67,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Foundation & Browse | 2/2 | Complete | 2026-03-26 |
 | 2. Playback | 0/1 | Not started | - |
-| 3. Search | 1/2 | In Progress|  |
+| 3. Search | 2/2 | Complete   | 2026-03-26 |
