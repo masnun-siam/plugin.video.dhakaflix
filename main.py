@@ -19,6 +19,9 @@ ICON_MAP = {
     "other": "DefaultFile.png",
 }
 
+# Playable file types for IsPlayable property (D-02)
+PLAYABLE_TYPES = {"video", "audio", "image"}
+
 
 @plugin.route("/")
 def index():
@@ -78,8 +81,12 @@ def browse(server_index, path):
             )
             xbmcplugin.addDirectoryItem(plugin.handle, url, li, isFolder=True)
         else:
-            # Non-folder item: list it for now (Phase 2 adds playback)
+            # Non-folder item
             url = item["url"]
+            # Set IsPlayable for video, audio, and image types (D-02)
+            if item["type"] in PLAYABLE_TYPES:
+                li.setProperty("IsPlayable", "true")
+            # Archive, document, and other types are non-clickable (no IsPlayable)
             xbmcplugin.addDirectoryItem(plugin.handle, url, li, isFolder=False)
 
     xbmcplugin.endOfDirectory(plugin.handle)
