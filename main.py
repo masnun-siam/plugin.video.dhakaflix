@@ -5,6 +5,8 @@ import xbmcplugin
 
 from lib.config import SERVERS, get_path_from_url
 from lib.h5ai import fetch_directory, sort_items
+from lib.search import search_series, build_search_index
+from lib import cache
 
 plugin = routing.Plugin()
 
@@ -33,6 +35,13 @@ def index():
         path = get_path_from_url(server["url"], server["base_url"])
         url = plugin.url_for(browse, server_index=str(i), path=path)
         xbmcplugin.addDirectoryItem(plugin.handle, url, li, isFolder=True)
+
+    # Add Search entry per D-01
+    search_item = xbmcgui.ListItem("Search")
+    search_item.setArt({"icon": "DefaultFolder.png"})
+    search_url = plugin.url_for(search)
+    xbmcplugin.addDirectoryItem(plugin.handle, search_url, search_item, isFolder=True)
+
     xbmcplugin.endOfDirectory(plugin.handle)
 
 
@@ -89,7 +98,137 @@ def browse(server_index, path):
             # Archive, document, and other types are non-clickable (no IsPlayable)
             xbmcplugin.addDirectoryItem(plugin.handle, url, li, isFolder=False)
 
+    # Add category search link per D-02
+    search_cat_item = xbmcgui.ListItem("Search in {}".format(server["name"]))
+    search_cat_item.setArt({"icon": "DefaultFolder.png"})
+    search_cat_url = plugin.url_for(search_category, server_index=str(server_index))
+    xbmcplugin.addDirectoryItem(
+        plugin.handle, search_cat_url, search_cat_item, isFolder=True
+    )
+
     xbmcplugin.endOfDirectory(plugin.handle)
+
+
+def display_search_results(results: list) -> None:
+    """Display search results with name, source category, and type icon."""
+    xbmcplugin.setContent(plugin.handle, "files")
+
+    if not results:
+        xbmcgui.Dialog().notification(
+            "Dhaka Flix", "No results found", xbmcgui.NOTIFICATION_INFO, 3000
+        )
+        xbmcplugin.endOfDirectory(plugin.handle, succeeded=False)
+        return
+
+    for item in results:
+        is_folder = item.get("type") == "folder"
+        name = item.get("name", "Unknown")
+        source_category = item.get("source_category", "")
+        item_type = item.get("type", "other")
+
+        # Create label with source category as subtitle
+        label = name
+        if source_category:
+            label = "{}  [{}]".format(name, source_category)
+
+        li = xbmcgui.ListItem(label)
+        li.setArt({"icon": ICON_MAP.get(item_type, "DefaultFile.png")})
+
+        if is_folder:
+            # Navigate into series folder
+            url = plugin.url_for(
+                browse,
+                server_index=str(
+                    SERVERS.index(
+                        next(s for s in SERVERS if s["name"] == source_category)
+                    )
+                ),
+                path=item.get("path", ""),
+            )
+            xbmcplugin.addDirectoryItem(plugin.handle, url, li, isFolder=True)
+        else:
+            # Playable media item
+            url = item.get("url", "")
+            if item_type in PLAYABLE_TYPES:
+                li.setProperty("IsPlayable", "true")
+            xbmcplugin.addDirectoryItem(plugin.handle, url, li, isFolder=False)
+
+    xbmcplugin.endOfDirectory(plugin.handle)
+
+
+@plugin.route("/search")
+def search():
+    """Global search across all servers."""
+    # Get query from user
+    dialog = xbmcgui.Dialog()
+    query = dialog.input("Search Dhaka Flix", type=xbmcgui.INPUT_ALPHANUM)
+
+    if not query:
+        xbmcplugin.endOfDirectory(plugin.handle, succeeded=False)
+        return
+
+    # Check if index needs building
+    index = cache.load_cache()
+    if index is None or cache.is_cache_stale():
+        progress = xbmcgui.DialogProgress()
+        progress.create("Building Index", "Fetching media from all servers...")
+        try:
+            index = build_search_index()
+        finally:
+            progress.close()
+
+    # Search and display results
+    results = search_series(query)
+    display_search_results(results)
+
+
+@plugin.route("/search/refresh")
+def search_refresh():
+    """Manual index refresh triggered from settings."""
+    progress = xbmcgui.DialogProgress()
+    progress.create("Refreshing Index", "Fetching media from all servers...")
+    try:
+        build_search_index()
+        xbmcgui.Dialog().notification("Dhaka Flix", "Index refreshed successfully")
+    except Exception as e:
+        xbmc.log("Dhaka Flix: Index refresh failed: {}".format(e), xbmc.LOGERROR)
+        xbmcgui.Dialog().notification(
+            "Dhaka Flix", "Index refresh failed", xbmcgui.NOTIFICATION_ERROR
+        )
+    finally:
+        progress.close()
+    xbmcplugin.endOfDirectory(plugin.handle, succeeded=False)
+
+
+@plugin.route("/search/category/<server_index>")
+def search_category(server_index):
+    """Search within a specific category/server."""
+    server = SERVERS[int(server_index)]
+
+    # Get query from user
+    dialog = xbmcgui.Dialog()
+    query = dialog.input(
+        "Search {}".format(server["name"]), type=xbmcgui.INPUT_ALPHANUM
+    )
+
+    if not query:
+        xbmcplugin.endOfDirectory(plugin.handle, succeeded=False)
+        return
+
+    # Check if index needs building
+    index = cache.load_cache()
+    if index is None or cache.is_cache_stale():
+        progress = xbmcgui.DialogProgress()
+        progress.create("Building Index", "Fetching media from all servers...")
+        try:
+            index = build_search_index()
+        finally:
+            progress.close()
+
+    # Filter by source category
+    results = search_series(query)
+    results = [r for r in results if r.get("source_category") == server["name"]]
+    display_search_results(results)
 
 
 if __name__ == "__main__":

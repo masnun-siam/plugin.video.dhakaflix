@@ -53,7 +53,10 @@ Plans:
   1. User sees a "Search" entry on the addon home screen and can type a query via Kodi's keyboard dialog
   2. Search results list matching items from all servers with their source category shown
   3. User can navigate into a search result folder to browse its contents, or click a video result to play it directly
-**Plans**: TBD
+**Plans**:2 plans
+Plans:
+- [x] 03-01-PLAN.md — Search infrastructure: cache module, settings, search module
+- [ ] 03-02-PLAN.md — Search UI integration: routes, home entry, context menu
 
 ## Progress
 
@@ -64,4 +67,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Foundation & Browse | 2/2 | Complete | 2026-03-26 |
 | 2. Playback | 0/1 | Not started | - |
-| 3. Search | 0/? | Not started | - |
+| 3. Search | 1/2 | In Progress|  |
