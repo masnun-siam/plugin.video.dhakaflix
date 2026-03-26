@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.video.dhakaflix"
+       name="Dhaka Flix"
+       version="0.1.0"
+       provider-name="siam">
+  <requires>
+    <import addon="xbmc.python" version="3.0.1"/>
+    <import addon="script.module.routing" version="0.2.3"/>
+  </requires>
+  <extension point="xbmc.python.pluginsource" library="main.py">
+    <provides>video</provides>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en_GB">Browse and play media from Dhaka Flix LAN servers</summary>
+    <description lang="en_GB">Access movies, TV series, and anime from Dhaka Flix h5ai file servers on your local network. Browse 9 media categories and play files directly in Kodi.</description>
+    <platform>all</platform>
+    <license>MIT</license>
+  </extension>
+</addon>
