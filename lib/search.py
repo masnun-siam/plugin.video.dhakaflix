@@ -6,7 +6,7 @@ Uses cache for index storage and staleness detection.
 import xbmc
 
 from lib import cache
-from lib.config import SERVERS
+from lib.config import SERVERS, get_path_from_url
 from lib.h5ai import fetch_directory
 
 
@@ -38,14 +38,59 @@ def fetch_all_servers_series() -> list:
             xbmc.LOGINFO,
         )
 
-        # Fetch the category root contents to get the list of series
-        # The URL points to a category folder containing series subfolders
-        try:
-            items = fetch_directory(server_url, base_url, api_path)
+        # Derive the path portion from the full URL (fetch_directory requires a path, not a URL)
+        root_path = get_path_from_url(server_url, base_url)
 
-            # Filter for folders (series) within this category
-            for item in items:
-                if item.get("type") == "folder":
+        try:
+            # Level 1: fetch the category root
+            root_items = fetch_directory(root_path, base_url, api_path)
+
+            for item in root_items:
+                if item.get("type") != "folder":
+                    continue
+
+                # Level 2: fetch the subfolder to determine if it is a category group or a series
+                sub_path = item.get("path")
+                xbmc.log(
+                    "Dhaka Flix: [{}/{}] Fetching sub-folder '{}' in {}".format(
+                        idx + 1, total_servers, item.get("name"), server_name
+                    ),
+                    xbmc.LOGINFO,
+                )
+                try:
+                    sub_items = fetch_directory(sub_path, base_url, api_path)
+                except Exception as sub_e:
+                    xbmc.log(
+                        "Dhaka Flix: Error fetching sub-folder '{}' in {}: {}".format(
+                            item.get("name"), server_name, sub_e
+                        ),
+                        xbmc.LOGERROR,
+                    )
+                    sub_items = []
+
+                sub_folders = [x for x in sub_items if x.get("type") == "folder"]
+
+                if sub_folders:
+                    # This root item is a category grouping (e.g. A-L, M-Z, #)
+                    # Index its child folders as the actual series/movies
+                    for sub_item in sub_folders:
+                        series_item = {
+                            "name": sub_item.get("name"),
+                            "path": sub_item.get("path"),
+                            "type": sub_item.get("type"),
+                            "size": sub_item.get("size"),
+                            "url": sub_item.get("url"),
+                            "source_category": server_name,
+                        }
+                        all_series.append(series_item)
+                        xbmc.log(
+                            "Dhaka Flix: Found series '{}' (via category '{}') in {}".format(
+                                sub_item.get("name"), item.get("name"), server_name
+                            ),
+                            xbmc.LOGDEBUG,
+                        )
+                else:
+                    # No sub-folders — the root item itself is a direct series/movie folder
                     series_item = {
                         "name": item.get("name"),
                         "path": item.get("path"),
