@@ -11,6 +11,8 @@ import urllib.request
 
 import xbmc
 
+from lib.log_utils import log_search_debug
+
 
 # File type extensions (expanded per D-06)
 VIDEO_EXTS = {
@@ -227,4 +229,100 @@ def fetch_directory(path: str, base_url: str, api_path: str) -> list:
         return []
     except Exception as e:
         xbmc.log(f"Dhaka Flix: Unexpected error fetching {path}: {e}", xbmc.LOGERROR)
+        return []
+
+
+def search_directory(pattern: str, href: str, base_url: str, api_path: str) -> list:
+    """
+    Search for files/folders matching a pattern using the h5ai search API.
+
+    Args:
+        pattern: Search string (matched against file/folder names server-side)
+        href: The root path to search within (e.g., /DHAKA-FLIX-7/English Movies/)
+        base_url: The server base URL (e.g., http://172.16.50.7)
+        api_path: The h5ai API path (e.g., /_h5ai/public/index.php)
+
+    Returns:
+        List of matching item dicts with keys: name, path, type, size, url
+        Returns empty list on error.
+    """
+    try:
+        api_url = f"{base_url}{api_path}"
+        log_search_debug(
+            "request url='{}' href='{}' pattern='{}'".format(api_url, href, pattern)
+        )
+
+        post_data = urllib.parse.urlencode(
+            {
+                "action": "get",
+                "search[href]": href,
+                "search[pattern]": pattern,
+                "search[ignorecase]": "1",
+            },
+            quote_via=urllib.parse.quote,
+        )
+
+        request = urllib.request.Request(
+            api_url,
+            data=post_data.encode("utf-8"),
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            },
+            method="POST",
+        )
+
+        # Longer timeout since recursive search is slower than a single listing
+        with urllib.request.urlopen(request, timeout=15) as response:
+            data = json.loads(response.read().decode("utf-8"))
+
+        raw_items = data.get("search", [])
+        log_search_debug(
+            "response href='{}' matches={} keys={}".format(
+                href, len(raw_items), ",".join(sorted(data.keys()))
+            )
+        )
+
+        items = []
+        for item in raw_items:
+            href_val = item.get("href", "")
+            if not href_val:
+                continue
+
+            # Extract name from the last path segment
+            name = urllib.parse.unquote(href_val.rstrip("/").rsplit("/", 1)[-1])
+
+            file_type = _get_file_type(href_val)
+
+            size = item.get("size")
+            formatted_size = (
+                format_bytes(size) if isinstance(size, (int, float)) else None
+            )
+
+            item_url = f"{base_url}{href_val}"
+
+            items.append(
+                {
+                    "name": name,
+                    "path": href_val,
+                    "type": file_type,
+                    "size": formatted_size,
+                    "url": item_url,
+                }
+            )
+
+        return sort_items(items)
+
+    except urllib.error.URLError as e:
+        log_search_debug("network error href='{}' error='{}'".format(href, e))
+        xbmc.log(f"Dhaka Flix: Network error searching {href}: {e}", xbmc.LOGERROR)
+        return []
+    except json.JSONDecodeError as e:
+        log_search_debug("invalid json href='{}' error='{}'".format(href, e))
+        xbmc.log(
+            f"Dhaka Flix: Invalid JSON response searching {href}: {e}", xbmc.LOGERROR
+        )
+        return []
+    except Exception as e:
+        log_search_debug("unexpected error href='{}' error='{}'".format(href, e))
+        xbmc.log(f"Dhaka Flix: Unexpected error searching {href}: {e}", xbmc.LOGERROR)
         return []

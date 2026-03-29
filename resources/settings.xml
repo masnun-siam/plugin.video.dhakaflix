@@ -1,20 +1,4 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings version="2">
-    <setting id="cache_staleness_hours" type="integer" label="Cache refresh interval (hours)" default="24">
-        <constraints>
-            <minimum>1</minimum>
-            <maximum>168</maximum>
-            <step>1</step>
-        </constraints>
-        <control format="integer" type="slider">
-            <popup>false</popup>
-        </control>
-    </setting>
-    <setting id="manual_refresh" type="action" label="Refresh search index">
-        <level>0</level>
-        <data>RunPlugin(plugin://plugin.video.dhakaflix/search/refresh)</data>
-        <control type="button">
-            <close>true</close>
-        </control>
-    </setting>
+    <setting id="search_debug_logging" type="boolean" label="Enable search debug logging" default="false" />
 </settings>
