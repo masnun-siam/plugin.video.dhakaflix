@@ -6,8 +6,7 @@ import xbmcplugin
 
 from lib.config import SERVERS, get_path_from_url
 from lib.h5ai import fetch_directory, sort_items
-from lib.search import search_series, build_search_index
-from lib import cache
+from lib.search import search_single_server, search_all_servers
 
 plugin = routing.Plugin()
 
@@ -28,7 +27,7 @@ PLAYABLE_TYPES = {"video", "audio", "image"}
 
 @plugin.route("/")
 def index():
-    """Home screen: list all 9 media categories."""
+    """Home screen: list all 9 media categories plus Search."""
     xbmcplugin.setContent(plugin.handle, "files")
     for i, server in enumerate(SERVERS):
         li = xbmcgui.ListItem(server["name"])
@@ -104,14 +103,6 @@ def browse(path):
                 li.setProperty("IsPlayable", "true")
             xbmcplugin.addDirectoryItem(plugin.handle, url, li, isFolder=False)
 
-    # Add category search link per D-02
-    search_cat_item = xbmcgui.ListItem("Search in {}".format(server["name"]))
-    search_cat_item.setArt({"icon": "DefaultFolder.png"})
-    search_cat_url = plugin.url_for(search_category, server_index=server_index)
-    xbmcplugin.addDirectoryItem(
-        plugin.handle, search_cat_url, search_cat_item, isFolder=True
-    )
-
     xbmcplugin.endOfDirectory(plugin.handle)
 
 
@@ -123,7 +114,9 @@ def display_search_results(results: list) -> None:
         xbmcgui.Dialog().notification(
             "Dhaka Flix", "No results found", xbmcgui.NOTIFICATION_INFO, 3000
         )
-        xbmcplugin.endOfDirectory(plugin.handle, succeeded=False)
+        # An empty result set is still a successful directory listing.
+        # Marking it as failed makes Kodi show "Error getting plugin://...".
+        xbmcplugin.endOfDirectory(plugin.handle, succeeded=True)
         return
 
     for item in results:
@@ -160,76 +153,59 @@ def display_search_results(results: list) -> None:
 
 @plugin.route("/search")
 def search():
-    """Global search across all servers."""
-    # Get query from user
+    """Search submenu: Global Search + per-category search targets."""
+    xbmcplugin.setContent(plugin.handle, "files")
+
+    # Global Search entry
+    li = xbmcgui.ListItem("Global Search")
+    li.setArt({"icon": "DefaultFolder.png"})
+    url = plugin.url_for(search_global)
+    xbmcplugin.addDirectoryItem(plugin.handle, url, li, isFolder=True)
+
+    # Per-category search entries
+    for i, server in enumerate(SERVERS):
+        li = xbmcgui.ListItem(server["name"])
+        li.setArt({"icon": "DefaultFolder.png"})
+        url = plugin.url_for(search_category, server_index=str(i))
+        xbmcplugin.addDirectoryItem(plugin.handle, url, li, isFolder=True)
+
+    xbmcplugin.endOfDirectory(plugin.handle)
+
+
+@plugin.route("/search/global")
+def search_global():
+    """Global search across all servers using h5ai search API."""
     dialog = xbmcgui.Dialog()
     query = dialog.input("Search Dhaka Flix", type=xbmcgui.INPUT_ALPHANUM)
-
     if not query:
         xbmcplugin.endOfDirectory(plugin.handle, succeeded=False)
         return
 
-    # Check if index needs building
-    index = cache.load_cache()
-    if index is None or cache.is_cache_stale():
-        progress = xbmcgui.DialogProgress()
-        progress.create("Building Index", "Fetching media from all servers...")
-        try:
-            index = build_search_index()
-        finally:
-            progress.close()
-
-    # Search and display results
-    results = search_series(query)
-    display_search_results(results)
-
-
-@plugin.route("/search/refresh")
-def search_refresh():
-    """Manual index refresh triggered from settings."""
     progress = xbmcgui.DialogProgress()
-    progress.create("Refreshing Index", "Fetching media from all servers...")
+    progress.create("Searching", "Searching all servers...")
     try:
-        build_search_index()
-        xbmcgui.Dialog().notification("Dhaka Flix", "Index refreshed successfully")
-    except Exception as e:
-        xbmc.log("Dhaka Flix: Index refresh failed: {}".format(e), xbmc.LOGERROR)
-        xbmcgui.Dialog().notification(
-            "Dhaka Flix", "Index refresh failed", xbmcgui.NOTIFICATION_ERROR
-        )
+        results = search_all_servers(query)
     finally:
         progress.close()
-    xbmcplugin.endOfDirectory(plugin.handle, succeeded=False)
+
+    display_search_results(results)
 
 
 @plugin.route("/search/category/<server_index>")
 def search_category(server_index):
-    """Search within a specific category/server."""
+    """Search within a specific category using h5ai search API."""
     server = SERVERS[int(server_index)]
 
-    # Get query from user
     dialog = xbmcgui.Dialog()
     query = dialog.input(
         "Search {}".format(server["name"]), type=xbmcgui.INPUT_ALPHANUM
     )
-
     if not query:
-        xbmcplugin.endOfDirectory(plugin.handle, succeeded=False)
+        # Treat cancel/empty input as a clean exit (no Kodi "Error getting plugin://...").
+        xbmcplugin.endOfDirectory(plugin.handle, succeeded=True)
         return
 
-    # Check if index needs building
-    index = cache.load_cache()
-    if index is None or cache.is_cache_stale():
-        progress = xbmcgui.DialogProgress()
-        progress.create("Building Index", "Fetching media from all servers...")
-        try:
-            index = build_search_index()
-        finally:
-            progress.close()
-
-    # Filter by source category
-    results = search_series(query)
-    results = [r for r in results if r.get("source_category") == server["name"]]
+    results = search_single_server(query, server)
     display_search_results(results)
 
 
