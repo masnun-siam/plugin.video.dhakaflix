@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: verifying
 stopped_at: Completed 03-search-02 plan - all plans complete
-last_updated: "2026-03-26T21:20:48.030Z"
+last_updated: "2026-03-26T21:22:26.885Z"
 last_activity: 2026-03-26
 progress:
   total_phases: 3
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 
 ## Current Position
 
-Phase: 3 (search) — EXECUTING
-Plan: 2 of 2
+Phase: 3
+Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-03-26
+Last activity: 2026-03-28 - Completed quick task 260329-1cm: Fix h5ai API calls in search.py to pass path instead of full URL and add two-level category fetch
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -77,6 +77,12 @@ None yet.
 
 - Phase 3 (Search): Validate `concurrent.futures.ThreadPoolExecutor` behavior under Kodi's plugin watchdog before implementing parallel multi-server fetching
 - Phase 1: Verify h5ai response edge cases (trailing slashes, percent-encoded hrefs) against real LAN data during testing
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260329-1cm | Fix h5ai API calls in search.py to pass path instead of full URL and add two-level category fetch | 2026-03-28 | 041926c | [260329-1cm-fix-h5ai-api-calls-in-search-py-to-pass-](./quick/260329-1cm-fix-h5ai-api-calls-in-search-py-to-pass-/) |
 
 ## Session Continuity
 

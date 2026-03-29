@@ -1,1 +1,15 @@
 .planning/
+.gitnexus
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS
+.DS_Store
+
+# Archives
+*.zip
+*.tar.gz

@@ -133,7 +133,7 @@ def fetch_directory(path: str, base_url: str, api_path: str) -> list:
     Fetch directory listing from h5ai server.
 
     Args:
-        path: The folder path to fetch (e.g., /DHAKA-FLIX-7/English%20Movies/)
+        path: The folder path to fetch (e.g., /DHAKA-FLIX-7/English Movies/)
         base_url: The server base URL (e.g., http://172.16.50.7)
         api_path: The h5ai API path (e.g., /_h5ai/public/index.php)
 
@@ -147,14 +147,16 @@ def fetch_directory(path: str, base_url: str, api_path: str) -> list:
 
         # Build the POST body
         # items[href] must be form-encoded as items%5Bhref%5D
-        encoded_path = urllib.parse.urlencode(
-            {"action": "get", "items[href]": path, "items[what]": "1"}
+        # Use quote_via=quote to encode spaces as %20 instead of +
+        post_data = urllib.parse.urlencode(
+            {"action": "get", "items[href]": path, "items[what]": "1"},
+            quote_via=urllib.parse.quote,
         )
 
         # Create request
         request = urllib.request.Request(
             api_url,
-            data=encoded_path.encode("utf-8"),
+            data=post_data.encode("utf-8"),
             headers={
                 "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             },
@@ -169,19 +171,22 @@ def fetch_directory(path: str, base_url: str, api_path: str) -> list:
         raw_items = data.get("items", [])
 
         items = []
+        # Encode path for comparison since API returns URL-encoded hrefs
+        encoded_path = urllib.parse.quote(path, safe="/")
+
         for item in raw_items:
             href = item.get("href", "")
 
-            # Ensure the item is within the requested path
-            if not href.startswith(path):
+            # Ensure the item is within the requested path (compare with encoded path)
+            if not href.startswith(encoded_path):
                 continue
 
             # Exclude the directory itself
-            if href == path:
+            if href == encoded_path:
                 continue
 
             # We only want direct children
-            rel_path = href[len(path) :]
+            rel_path = href[len(encoded_path) :]
             parts = [p for p in rel_path.split("/") if p]
             if len(parts) != 1:
                 continue
